@@ -20,17 +20,18 @@
             border: 1px solid rgba(0, 0, 0, 0.2);
             z-index: 999;
         }
-        #seek-bar {
+        #seek-bar, #volume-bar {
             -webkit-appearance: none;
             appearance: none;
             width: 100%;
             height: 8px;
             border-radius: 5px;
-            background: #4a5568;
+            background: rgba(0, 0, 0, 0.1);
+            
             outline: none;
             position: relative;
         }
-        #seek-bar::-webkit-slider-thumb {
+        #seek-bar::-webkit-slider-thumb, #volume-bar::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             width: 16px;
@@ -42,7 +43,7 @@
             position: relative;
             z-index: 2;
         }
-        #seek-bar::-moz-range-thumb {
+        #seek-bar::-moz-range-thumb, #volume-bar::-moz-range-thumb {
             width: 16px;
             height: 16px;
             border-radius: 50%;
@@ -51,13 +52,13 @@
             position: relative;
             z-index: 2;
         }
-        #seek-bar::before {
+        #seek-bar::before, #volume-bar::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             height: 100%;
-            background: white;
+            background: rgba(0, 0, 0, 0.1);
             z-index: 1;
             border-radius: 5px;
         }
@@ -87,12 +88,22 @@
                 <label for="color-picker" class="cursor-pointer text-white py-2 px-1 rounded">
                     <i id="color-picker-label" class="fas fa-palette"></i>
                 </label>
-                <input id="color-picker" type="color" value="#ff3296" style="opacity: 0;"/>
+                <input id="color-picker" type="color" value="#ff3296" style="opacity: 0;width: 4px;"/>
+                <select id="visualizer-select" class="glass text-white px-2 py-1 rounded border border-white">
+                    <option value="bar" class="bg-gray-800 text-white">Bar</option>
+                    <option value="circle" class="bg-gray-800 text-white">Circle</option>
+                    <option value="ncs" class="bg-gray-800 text-white">Bar Circle</option>
+                    <option value="blob" class="bg-gray-800 text-white">Blob</option>
+                    <option value="grid" class="bg-gray-800 text-white">Grid</option>
+                </select>
             </div>
             <button id="play-pause" class="text-white rounded">
                 <i class="fas fa-play"></i>
             </button>
-            <span id="time-display">00:00 / 04:03</span>
+            <div class="flex items-center">
+                <input id="volume-bar" type="range" value="100" min="0" max="100" class="mx-2 bg-gray-700 accent-blue-500" style="width: 50%;"/>
+                <span id="time-display">00:00 / 04:03</span>
+            </div>
             </div>
             <input id="seek-bar" type="range" value="0" min="0" max="100" class="w-full mt-2 bg-gray-700 accent-blue-500" />
         </div>
@@ -106,12 +117,14 @@
         const fileInput = document.getElementById('audio-file');
         const playPauseButton = document.getElementById('play-pause');
         const seekBar = document.getElementById('seek-bar');
+        const volumeBar = document.getElementById('volume-bar');
         const timeDisplay = document.getElementById('time-display');
         const canvas = document.getElementById('visualizer');
         const songTitleModal = document.getElementById('song-title-modal');
         const uploadButton = document.getElementById('upload-button');
         const colorPicker = document.getElementById('color-picker');
         const colorPickerLabel = document.getElementById('color-picker-label');
+        const visualizerSelect = document.getElementById('visualizer-select');
         const ctx = canvas.getContext('2d');
 
         let audioContext, audioSource, analyser, audio, dataArray, bufferLength;
@@ -127,6 +140,7 @@
             audio.addEventListener('timeupdate', updateSeekBar);
             audio.addEventListener('loadedmetadata', updateTimeDisplay);
             setupAudioContext(audio);
+            updateVolumeBarColor(100);
         }
 
         fileInput.addEventListener('change', (event) => {
@@ -146,6 +160,7 @@
             songTitleModal.textContent = file.name;
             uploadButton.classList.remove('flashing');
             updateSeekBarColor(0)
+            updateVolumeBarColor(100);
             audioContext.resume();
             audio.play();
             playPauseButton.innerHTML = '<i class="fas fa-pause"></i>';
@@ -181,7 +196,29 @@
             }
             isPlaying = !isPlaying;
         });
-
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                playPauseButton.click();
+            } else if (event.code === "ArrowLeft"){
+                audio.currentTime -= 3;
+                updateSeekBarColor(seekBar.value);
+                event.preventDefault()
+            } else if (event.code === "ArrowRight"){
+                audio.currentTime += 3;
+                updateSeekBarColor(seekBar.value);
+                event.preventDefault()
+            } else if (event.code === "ArrowUp"){
+                audio.volume = Math.min(1, audio.volume+0.025);
+                updateVolumeBarColor(audio.volume*100);
+                event.preventDefault()
+            } else if (event.code === "ArrowDown"){
+                console.log(audio.volume-0.025)
+                audio.volume = Math.max(0, audio.volume-0.025);
+                updateVolumeBarColor(audio.volume*100);
+                event.preventDefault()
+            }
+        });
         function updateSeekBar() {
             if (!audio) return;
 
@@ -213,7 +250,19 @@
 
         function updateSeekBarColor(progress) {
             seekBar.style.setProperty('--seek-before-width', `${progress}%`);
-            seekBar.style.background = `linear-gradient(to right, white ${progress}%, #4a5568 ${progress}%)`;
+            seekBar.style.background = `linear-gradient(to right, white ${progress}%, rgba(0,0,0,0.1) ${progress}%)`;
+        }
+
+        volumeBar.addEventListener('input', () => {
+            if (!audio) return;
+
+            audio.volume = volumeBar.value / 100;
+            updateVolumeBarColor(volumeBar.value);
+        });
+
+        function updateVolumeBarColor(progress) {
+            volumeBar.style.setProperty('--volumue-before-width', `${progress}%`);
+            volumeBar.style.background = `linear-gradient(to right, white ${progress}%, rgba(0,0,0,0.1) ${progress}%)`;
         }
 
         colorPicker.addEventListener('input', (event) => {
@@ -223,31 +272,197 @@
 
         function drawVisualizer() {
             requestAnimationFrame(drawVisualizer);
-
+            if (!analyser) return;
+            if (visualizerSelect.value === 'bar') {
+                drawBarVisualizer();
+            } else if (visualizerSelect.value === 'circle') {
+                drawCircleVisualizer();
+            } else if (visualizerSelect.value === "ncs") {
+                drawNCSVisualizer();
+            } else if (visualizerSelect.value === 'blob') {
+                drawBlobVisualizer();
+            } else if (visualizerSelect.value === "grid"){
+                drawGridVisualizer();
+            }
+        }
+        function hexToRgb(hex) {
+            const res = hex.split("#")[1];
+            return {
+                r: parseInt(res.slice(0,2), 16),
+                g: parseInt(res.slice(2,4), 16),
+                b: parseInt(res.slice(4,6), 16)
+            } 
+        }
+        function drawBarVisualizer() {
             if (!analyser) return;
 
             analyser.getByteFrequencyData(dataArray);
-            bufferLength = 88;
+            bufferLength = 85;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             const barWidth = (canvas.width / bufferLength)-1;
             let barHeight;
             let x = 0;
             
-            function hexToRgb(hex) {
-                const res = hex.split("#")[1];
-                return {
-                    r: parseInt(res.slice(0,2), 16),
-                    g: parseInt(res.slice(2,4), 16),
-                    b: parseInt(res.slice(4,6), 16)
-                } 
-            }
-
+            ctx.shadowBlur = 0;
             for (let i = 0; i < bufferLength; i++) {
-                barHeight = (dataArray[i] * (canvas.height / 256));
+                barHeight = Math.max(5,(dataArray[i] * (canvas.height / 256)));
                 const rgb = hexToRgb(barColor);
                 ctx.fillStyle = `rgb(${-(canvas.height-barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b})`;
                 ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
                 x += barWidth + 1;
+            }
+        }
+
+        function drawCircleVisualizer() {
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = Math.min(canvas.width, canvas.height) / 4.5;
+                const waveform = [];
+                const offset = 40;
+
+                for (let i = 0; i < bufferLength-offset; i++) {
+                    const angle = (i / (bufferLength-offset)) * Math.PI * 2;
+                    let barHeight = (dataArray[i] / (255-offset)) * radius;
+                    const x = centerX + Math.cos(angle) * (radius + barHeight);
+                    const y = centerY + Math.sin(angle) * (radius + barHeight)-30;
+                    barHeight=dataArray[i] * (canvas.height / 256);
+                    waveform.push({ x, y, barHeight });
+                }
+
+                ctx.beginPath();
+                ctx.lineWidth = 8;
+                ctx.strokeStyle = 'white';
+                ctx.shadowBlur = 15;
+
+                for (let i = 0; i < waveform.length; i++) {
+                    const point = waveform[i];
+                    const nextPoint = waveform[(i + 1) % waveform.length];
+
+                    const rgb = hexToRgb(barColor);
+                    ctx.shadowColor = `rgba(${-(canvas.height-point.barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b},0.8)`;
+                    ctx.strokeStyle = `rgb(${-(canvas.height-point.barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b})`;
+                    ctx.lineTo(point.x, point.y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }        
+        }
+        function drawNCSVisualizer() {
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = Math.min(canvas.width, canvas.height) / 4;
+                const barWidth = 5;
+                const barCount = 85;
+                const step = Math.PI * 2 / (barCount);
+
+                ctx.shadowBlur = 15;
+                for (let i = 0; i < barCount; i++) {
+                    const value = dataArray[i];
+                    const barHeight = Math.max(5,(dataArray[i] * (canvas.height / 256))/3);
+                    const angle = step * i;
+
+                    const x1 = centerX + Math.cos(angle) * radius;
+                    const y1 = centerY + Math.sin(angle) * radius;
+                    const x2 = centerX + Math.cos(angle) * (radius + barHeight);
+                    const y2 = centerY + Math.sin(angle) * (radius + barHeight);
+
+                    const rgb = hexToRgb(barColor);
+
+                    ctx.shadowColor = `rgba(${-(canvas.height-barHeight*3)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b},0.8)`;
+                    ctx.strokeStyle = `rgb(${-(canvas.height-barHeight*3)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b})`;
+                    ctx.lineWidth = barWidth;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+            }
+        }
+        const blobRadius = Math.min(canvas.width, canvas.height) / 20;
+        const blobCenters = Array.from({ length: 85 }, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+        }));
+        function drawBlobVisualizer() {
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const offset = 40;
+                const blobCount = bufferLength-offset;
+
+                for (let j = 0; j < blobCount; j++) {
+                    const { x: centerX, y: centerY } = blobCenters[j];
+
+                    ctx.beginPath();
+                    ctx.moveTo(centerX + blobRadius, centerY);
+                    let barHeight;
+                    for (let i = 0; i < 360; i++) {
+                        const angle = (i / (180)) * Math.PI * 2;
+                        const value = dataArray[j];
+                        barHeight = blobRadius + (value / 127) * blobRadius*0.5;
+                        const x = centerX + Math.cos(angle) * barHeight;
+                        const y = centerY + Math.sin(angle) * barHeight;
+
+                        ctx.lineTo(x, y);
+                    }
+
+                    ctx.closePath();
+                    const rgb = hexToRgb(barColor);
+                    barHeight = Math.max(5,(dataArray[j] * (canvas.height / 256)));
+                    ctx.strokeStyle = `rgb(${-(canvas.height-barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b})`;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = `rgba(${-(canvas.height-barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b},0.8)`;
+                    ctx.fillStyle = `rgba(${-(canvas.height-barHeight)/(canvas.height / 256)+rgb.r}, ${rgb.g}, ${rgb.b})`;
+                    ctx.fill();
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+        }
+        function drawGridVisualizer() {
+            if (analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                const cols = 10;
+                const rows = 8;
+                const cellWidth = canvas.width / cols;
+                const cellHeight = canvas.height / rows;
+                const blobRadius = Math.min(cellWidth, cellHeight);
+
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const index = row * cols + col;
+                        if (index >= bufferLength) break;
+
+                        const centerX = col * cellWidth + cellWidth / 2;
+                        const centerY = row * cellHeight + cellHeight / 2;
+                        const value = dataArray[index];
+                        let barHeight = Math.max(((value/255)*blobRadius)/blobRadius,((10/255)*blobRadius)/blobRadius);
+
+                        ctx.beginPath();
+                        ctx.moveTo(centerX + barHeight, centerY);
+                        ctx.rect(centerX - (cellWidth*barHeight) / 2, centerY - (cellHeight*barHeight) / 2, cellWidth*barHeight, cellHeight*barHeight);
+                        ctx.closePath();
+                        barHeight = Math.max(5,(value * (canvas.height / 256)));
+                        const rgb = hexToRgb(barColor);
+                        ctx.strokeStyle = `rgb(${-(canvas.height - barHeight) / (canvas.height / 256) + rgb.r}, ${rgb.g}, ${rgb.b})`;
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = `rgba(${-(canvas.height - barHeight) / (canvas.height / 256) + rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`;
+                        ctx.fillStyle = `rgba(${-(canvas.height - barHeight) / (canvas.height / 256) + rgb.r}, ${rgb.g}, ${rgb.b})`;
+                        ctx.fill();
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                }
             }
         }
     </script>

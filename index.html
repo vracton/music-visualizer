@@ -112,7 +112,7 @@
     <div class="relative w-full h-full" style="height:100vh;">
         <canvas id="visualizer" class="w-full h-full"></canvas>
     </div>
-    <audio preload src="Diamonds.mp3" type="audio/mpeg"/>
+    <audio preload src="stuckonyou.mp3" type="audio/mpeg"/>
     <script>
         const fileInput = document.getElementById('audio-file');
         const playPauseButton = document.getElementById('play-pause');
@@ -137,6 +137,7 @@
 
         window.onload = () => {
             audio = new Audio("./Diamonds.mp3");
+            audio.looped = true;
             audio.addEventListener('timeupdate', updateSeekBar);
             audio.addEventListener('loadedmetadata', updateTimeDisplay);
             setupAudioContext(audio);
@@ -468,3 +469,4 @@
     </script>
 </body>
 </html>
+
